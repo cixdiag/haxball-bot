@@ -1,6 +1,6 @@
 //İbrahim Ercan
 
-var room = HBInit({ roomName: "3v3 YS istatistikli", maxPlayers: 8 , playerName: "Host", public: true});
+var room = HBInit({ roomName: "3v3,YS,istatistikli", maxPlayers: 8 , playerName: "Host", public: true});
 room.setDefaultStadium("Big");
 room.setScoreLimit(3);
 room.setTimeLimit(3);
@@ -13,13 +13,15 @@ var blue_team_players = [];
 var red_team_players = [];
 var spec_team_players = [];
 var stats = {};
+var last_toucher;
+var second_toucher;
 
 function compare(a,b) {
-  if (stats[a.id].score < stats[b.id].score)
+  if (stats[a.id].rate < stats[b.id].rate)
     return 1;
-  if (stats[a.id].score > stats[b.id].score)
+  if (stats[a.id].rate > stats[b.id].rate)
     return -1;
-  if (stats[a.id].score == stats[b.id].score){
+  if (stats[a.id].rate == stats[b.id].rate){
     if (stats[a.id].win < stats[b.id].win)
         return 1;
     if (stats[a.id].win > stats[b.id].win)
@@ -28,6 +30,28 @@ function compare(a,b) {
   return 0;
 }
 
+function compare_goal(a,b) {
+  if (stats[a.id].score < stats[b.id].score)
+    return 1;
+  if (stats[a.id].score > stats[b.id].score)
+    return -1;
+  if (stats[a.id].score == stats[b.id].score){
+    if (stats[a.id].assist < stats[b.id].assist)
+        return 1;
+    if (stats[a.id].assist > stats[b.id].assist)
+        return -1;
+  }
+  return 0;
+}
+
+function printPlayerStat(player){
+    room.sendChat(player.name + " Win: "+ stats[player['id']].win + ", Lose: " + stats[player['id']].lose + ", %: " + stats[player['id']].rate + ", Goal: " + stats[player['id']].score + ", Assist: " + stats[player['id']].assist);
+
+}
+
+function printHelp(){
+    room.sendChat("Komutlar: !best, !all, !me, !goalking, !help");
+}
 room.onPlayerJoin = function(player) {
     //set admin
     players = room.getPlayerList().filter((player) => player.id != 0 );
@@ -40,9 +64,11 @@ room.onPlayerJoin = function(player) {
     stats[player.id].win = 0;
     stats[player.id].lose = 0;
     stats[player.id].score = 0;
+    stats[player.id].rate = 0;
+    stats[player.id].assist = 0;
     
     room.sendChat("Hoşgeldin "+ player.name);
-    room.sendChat("Komutlar: !best, !all, !me, !help");
+    printHelp();
 }
 
 room.onTeamVictory = function(scores) {
@@ -63,13 +89,13 @@ room.onTeamVictory = function(scores) {
     }
     for (i = 0; i < loser_team.length; i++) { 
         stats[loser_team[i]['id']].lose += 1;
-        stats[loser_team[i]['id']].score = 100 * stats[loser_team[i]['id']].win / (stats[loser_team[i]['id']].win + stats[loser_team[i]['id']].lose)
-        //room.sendChat(loser_team[i].name + " Win: "+ stats[loser_team[i]['id']].win + ", Lose: " + stats[loser_team[i]['id']].lose + ", %: " + stats[loser_team[i]['id']].score );
+        stats[loser_team[i]['id']].rate = 100 * stats[loser_team[i]['id']].win / (stats[loser_team[i]['id']].win + stats[loser_team[i]['id']].lose)
+
     }
     for (i = 0; i < winner_team.length; i++) { 
         stats[winner_team[i]['id']].win += 1;
-        stats[winner_team[i]['id']].score = 100 * stats[winner_team[i]['id']].win / (stats[winner_team[i]['id']].win + stats[winner_team[i]['id']].lose)
-        room.sendChat(winner_team[i].name + " Win: "+ stats[winner_team[i]['id']].win + ", Lose: " + stats[winner_team[i]['id']].lose + ", %: " + stats[winner_team[i]['id']].score );
+        stats[winner_team[i]['id']].rate = 100 * stats[winner_team[i]['id']].win / (stats[winner_team[i]['id']].win + stats[winner_team[i]['id']].lose)
+        printPlayerStat(winner_team[i]);
     }
 
     
@@ -78,21 +104,47 @@ room.onTeamVictory = function(scores) {
 room.onPlayerChat = function(player, message) {
     players = room.getPlayerList().filter((player) => player.id != 0 );
     var i;
-    players.sort(compare);
     
-    if (message == "!all"){    
-        for (i = 0; i < players.length; i++) { 
-            room.sendChat(players[i].name + " Win: "+ stats[players[i]['id']].win + ", Lose: " + stats[players[i]['id']].lose + ", %: " + stats[players[i]['id']].score)
+    
+    if (message == "!all"){
+        players.sort(compare);
+        for (i = 0; i < players.length; i++) {
+            printPlayerStat(players[i]);
         }
     }
     else if (message == "!best"){
-        room.sendChat(players[0].name + " Win: "+ stats[players[0]['id']].win + ", Lose: " + stats[players[0]['id']].lose + ", %: " + stats[players[0]['id']].score)
+        players.sort(compare);
+        printPlayerStat(players[0]);
     }
     else if (message == "!me"){
-        room.sendChat(player.name + " Win: "+ stats[player['id']].win + ", Lose: " + stats[player['id']].lose + ", %: " + stats[player['id']].score)
+        printPlayerStat(player);
+    }
+    else if (message == "!goalking"){
+        players.sort(compare_goal);
+        printPlayerStat(players[0]);
     }
     else if (message == "!help"){
-        room.sendChat("Komutlar: !best, !all, !me, !help");
+        printHelp();
+    }
+
+}
+
+room.onPlayerBallKick = function(player) {
+    second_toucher = last_toucher;
+    last_toucher = player;
+
+}
+
+room.onTeamGoal = function(team){
+    var str = "";
+    if (team == last_toucher.team){
+        stats[last_toucher.id].score += 1;
+        str = "GOOOOL!!! " + last_toucher.name + " attı. ";
+        if (second_toucher && team == second_toucher.team && second_toucher.id != last_toucher.id ){
+            stats[second_toucher.id].assist += 1; 
+            str += "Asist " + second_toucher.name;
+        }
+        room.sendChat(str);
     }
 
 }
