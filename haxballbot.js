@@ -45,12 +45,12 @@ function compare_goal(a,b) {
 }
 
 function printPlayerStat(player){
-    room.sendChat(player.name + " Win: "+ stats[player['id']].win + ", Lose: " + stats[player['id']].lose + ", %: " + stats[player['id']].rate + ", Goal: " + stats[player['id']].score + ", Assist: " + stats[player['id']].assist);
+    room.sendChat(player.name + " Win: "+ stats[player['id']].win + ", Loss: " + stats[player['id']].lose + ", %: " + parseInt(stats[player['id']].rate) + ", Goal: " + stats[player['id']].score + ", Assist: " + stats[player['id']].assist);
 
 }
 
 function printHelp(){
-    room.sendChat("Komutlar: !best, !all, !me, !goalking, !help");
+    room.sendChat("Komutlar: !best, !all, !top3, !me, !goalking, !help");
 }
 room.onPlayerJoin = function(player) {
     //set admin
@@ -107,7 +107,6 @@ room.onPlayerChat = function(player, message) {
     
     
     if (message == "!all"){
-        players.sort(compare);
         for (i = 0; i < players.length; i++) {
             printPlayerStat(players[i]);
         }
@@ -115,6 +114,12 @@ room.onPlayerChat = function(player, message) {
     else if (message == "!best"){
         players.sort(compare);
         printPlayerStat(players[0]);
+    }
+    else if (message == "!top3"){
+        players.sort(compare);
+        for (i = 0; i < 3; i++) {
+            if (players[i]) printPlayerStat(players[i]);
+        }
     }
     else if (message == "!me"){
         printPlayerStat(player);
@@ -126,7 +131,6 @@ room.onPlayerChat = function(player, message) {
     else if (message == "!help"){
         printHelp();
     }
-
 }
 
 room.onPlayerBallKick = function(player) {
